@@ -47,19 +47,30 @@ async function obtenerHTML(nombre, poblacion) {
     const lat = poi.lat;
     const lng = poi.lng;
 
-    console.log("Nombre:", pois[0].name);
-    console.log("Dirección:", pois[0].address);
-    console.log("Teléfono:", pois[0].phone);
-    console.log("Latitud:", pois[0].lat);
-    console.log("Longitud:", pois[0].lng);
+    // console.log("Nombre:", pois[0].name);
+    // console.log("Dirección:", pois[0].address);
+    // console.log("Teléfono:", pois[0].phone);
+    // console.log("Latitud:", pois[0].lat);
+    // console.log("Longitud:", pois[0].lng);
     // Si solo quieres el primero:
     // console.log('Primer POI:', pois[0]);
     await browser.close();
 
-    //return pageHTML;
+    return {
+        nombre: pois[0].name ?? null,
+        direccion: pois[0].address ?? null,
+        telefono: pois[0].phone ?? null,
+        latitud: pois[0].lat ?? null,
+        logitud: pois[0].lng ?? null
+    };
 }
 const args = process.argv.slice(2);
 const nombre = args[0];
 const poblacion = args[1];
 
-await obtenerHTML(nombre, poblacion);
+const resultado = await obtenerHTML(nombre, poblacion);
+if (resultado) {
+    console.log(JSON.stringify({ ok: true, data: resultado }));
+} else {
+    console.log(JSON.stringify({ og: false }));
+}
