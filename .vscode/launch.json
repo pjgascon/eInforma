@@ -10,8 +10,6 @@
             "request": "launch",
             "port": 9003
         },
-
-
         {
             "type": "node",
             "request": "launch",
@@ -22,7 +20,24 @@
             "program": "${workspaceFolder}/telefono.js",
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
-"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Node: ejecutar eInforma.js",
+            "program": "${workspaceFolder}/eInforma.js",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            // Opcional: para ESM o para parar en la primera línea
+            "runtimeArgs": [
+                "--inspect"
+            ], // o "--inspect-brk" para parar al inicio
+            "env": {
+                "NODE_ENV": "development"
+            }
         }
     ]
 }

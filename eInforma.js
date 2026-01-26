@@ -39,7 +39,7 @@ async function obtenerCif() {
 
 async function obtenerHTML(cif) {
     const browser = await puppeteer.launch({
-        executablePath: '/snap/bin/chromium',
+        executablePath: '/usr/bin/google-chrome',
         headless: true,
         args: ['--window-size=1,1',
             '--window-position=-1000,0',
@@ -51,10 +51,10 @@ async function obtenerHTML(cif) {
     // const browser = await connect({ browserWSEndpoint: 'ws://127.0.0.1:9222/devtools/browser/d13356c4-0eaa-4248-8f4c-c43b4f8ad5e4' });
     const page = await browser.newPage();
 
-   /* await page.authenticate({
-        username: 'hjmguwrp',
-        password: 'qe8ymbbcdnz9'
-    });*/
+    /* await page.authenticate({
+         username: 'hjmguwrp',
+         password: 'qe8ymbbcdnz9'
+     });*/
 
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     await page.goto("https://www.einforma.com/servlet/app/prod/ETIQUETA_EMPRESA/nif/" + cif);
@@ -76,6 +76,11 @@ async function obtenerDatosB(html) {
         objDatos.direccion = "Sin resultados";
         objDatos.poblacion = "Sin resultados";
         objDatos.provincia = "Sin resultados";
+        objDatos.telefono = "No encontrado";
+        objDatos.forma_juridica = "No encontrado";
+        objDatos.actividad_informa = "No encontrado";
+        objDatos.cnae = "No encontrado";
+        objDatos.objeto_social = "No encontrado";
         return objDatos;
     }
 
@@ -105,11 +110,25 @@ async function obtenerDatosB(html) {
         localidad = localidad.substring(0, posicion + 1).trim();
     }
 
+    // ✅ Teléfono desde la tabla (puede devolver varios)
+    const telefonos = getDatoTablaPorLabel(document, 'Teléfono:');
+    const telefono = separarTelefonos9(telefonos); // o telefonos[0] si solo quieres el primero
+
+    const formaJuridica = getDatoTabla(document, 'Forma Jurídica');     // "Sociedad limitada" :contentReference[oaicite:2]{index=2}
+    const actividadInforma = getDatoTabla(document, 'Actividad Informa');  // "Actividades de los centros de llamadas" :contentReference[oaicite:3]{index=3}
+    const cnae = getDatoTabla(document, 'CNAE');               // "8220 - ..." :contentReference[oaicite:4]{index=4}
+    const objetoSocial = getDatoTabla(document, 'Objeto Social');
+
     let objDatos = {};
     objDatos.nombre = addslashes(denominacion);
     objDatos.direccion = addslashes(direccion);
     objDatos.poblacion = addslashes(localidad);
     objDatos.provincia = "";
+    objDatos.telefono = addslashes(telefono);
+    objDatos.forma_juridica = addslashes(formaJuridica);
+    objDatos.actividad_informa = addslashes(actividadInforma);
+    objDatos.cnae = addslashes(cnae);
+    objDatos.objeto_social = addslashes(objetoSocial);
     return objDatos;
 }
 
@@ -117,40 +136,39 @@ async function obtenerDatos(html) {
     const dom = new JSDOM(html);
     const document = dom.window.document;
 
-    // 🔍 Buscar la denominación (nombre de la empresa)
     let nombre = document.querySelector('title')?.textContent || 'No encontrado';
 
-    // 🔍 Buscar el domicilio (dirección) en JSON-LD dentro de <script type="application/ld+json">
     let direccion = 'No encontrado';
     let poblacion = "No encontrado";
     let provincia = "No encontrado";
-    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    let telefono = "No encontrado";
 
+    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
     jsonLdScripts.forEach(script => {
         try {
             const jsonData = JSON.parse(script.textContent);
             if (jsonData["@type"] === "Corporation" && jsonData.address) {
                 direccion = jsonData.address.streetAddress;
-                // , ${jsonData.address.addressLocality}, ${jsonData.address.addressRegion}, ${jsonData.address.addressCountry}
                 poblacion = jsonData.address.addressLocality;
                 provincia = jsonData.address.addressRegion;
             }
-        } catch (error) {
-            console.error("Error procesando JSON-LD:", error);
-        }
+        } catch (error) { }
     });
 
     let objDatos = {};
-    objDatos.nombre = nombre;
+    objDatos.nombre = addslashes(nombre);
     objDatos.direccion = addslashes(direccion);
     objDatos.poblacion = addslashes(poblacion);
-    objDatos.provincia = provincia;
+    objDatos.provincia = addslashes(provincia);
+    objDatos.telefono = addslashes(telefonos);
+
     return objDatos;
 }
 
+
 async function guardarDatos(datos) {
     const con = await connectar();
-    const sql = "call captura.datos_cif_guardar('" + cif + "','" + datos.nombre + "','" + datos.direccion + "','" + datos.poblacion + " " + datos.provincia + "','')";
+    const sql = "call captura.datos_cif_guardar('" + cif + "','" + datos.nombre + "','" + datos.direccion + "','" + datos.poblacion + " " + datos.provincia + "','', '" + datos.telefono + "','" + datos.forma_juridica + "','" + datos.actividad_informa + "','" + datos.cnae + "','" + datos.objeto_social + "')";
     await con.query(sql);
     con.end();
     console.log("Guardando " + cif + " " + datos.nombre);
@@ -164,8 +182,68 @@ function addslashes(str) {
         .replace(/\0/g, '\\0');   // carácter NULL
 }
 
-const cif = await obtenerCif();
-// const cif = "A08000143";
+function getDatoTablaPorLabel(document, label) {
+    // Busca la tabla principal de datos
+    const rows = document.querySelectorAll('table#datos tr');
+
+    for (const tr of rows) {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length < 2) continue;
+
+        const key = (tds[0].textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        if (key === label.toLowerCase()) {
+            // En el TD de valor hay <br>, así que textContent ya trae saltos -> los normalizamos
+            const raw = (tds[1].textContent || '').trim();
+
+            // Saca teléfonos: secuencias de 9+ dígitos (ajusta si quieres)
+            const phones = raw
+                .split(/[\r\n]+/g)
+                .map(s => s.replace(/\s+/g, '').trim())
+                .filter(s => /\d{9,}/.test(s));
+
+            return phones; // array (puede venir 1 o varios)
+        }
+    }
+    return [];
+}
+
+function separarTelefonos9(cadena) {
+    if (cadena === null || cadena === undefined) return '';
+
+    // 🔒 forzar a string SIEMPRE
+    const texto = String(cadena);
+
+    // Quitar todo lo que no sean números
+    const soloNumeros = texto.replace(/\D/g, '');
+
+    // Extraer bloques de 9 cifras
+    const telefonos = soloNumeros.match(/\d{9}/g) || [];
+
+    return telefonos.join(', ');
+}
+
+function getDatoTabla(document, contieneLabel) {
+    const rows = document.querySelectorAll('table#datos tr');
+
+    for (const tr of rows) {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length < 2) continue;
+
+        const label = (tds[0].textContent || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+
+        if (label.includes(contieneLabel.toLowerCase())) {
+            return (tds[1].textContent || '').replace(/\s+/g, ' ').trim();
+        }
+    }
+    return '';
+}
+
+
+//const cif = await obtenerCif();
+const cif = "B84525864";
 if (cif.length > 0) {
     const html = await obtenerHTML(cif);
     const datos = await (obtenerDatosB(html));
