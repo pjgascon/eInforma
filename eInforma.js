@@ -171,7 +171,7 @@ async function guardarDatos(datos) {
     const sql = "call captura.datos_cif_guardar('" + cif + "','" + datos.nombre + "','" + datos.direccion + "','" + datos.poblacion + " " + datos.provincia + "','', '" + datos.telefono + "','" + datos.forma_juridica + "','" + datos.actividad_informa + "','" + datos.cnae + "','" + datos.objeto_social + "')";
     await con.query(sql);
     con.end();
-    console.log("Guardando " + cif + " " + datos.nombre);
+    console.log("Guardando " + cif + "\n" + datos.nombre + "\n" + datos.direccion + "\n" + datos.poblacion + "\n" + datos.telefono + "\n_____________________________________________________");
 }
 
 function addslashes(str) {
@@ -242,8 +242,8 @@ function getDatoTabla(document, contieneLabel) {
 }
 
 
-//const cif = await obtenerCif();
-const cif = "B84525864";
+const cif = await obtenerCif();
+// const cif = "G54081807";
 if (cif.length > 0) {
     const html = await obtenerHTML(cif);
     const datos = await (obtenerDatosB(html));
