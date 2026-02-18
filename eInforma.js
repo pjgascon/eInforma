@@ -29,17 +29,17 @@ async function obtenerCif() {
     const con = await connectar();
     const [rows] = await con.query("call captura.datos_cif_seleccionar();");
     con.end();
-
-    try {
-        return rows[0][0].cif;
-    } catch (error) {
-        return "";
-    }
+    return "A01165034";
+    // try {
+    //     return rows[0][0].cif;
+    // } catch (error) {
+    //     return "";
+    // }
 }
 
 async function obtenerHTML(cif) {
     const browser = await puppeteer.launch({
-        executablePath: '/usr/bin/google-chrome',
+        executablePath: '/usr/bin/chromium',
         headless: true,
         args: ['--window-size=1,1',
             '--window-position=-1000,0',
@@ -242,8 +242,8 @@ function getDatoTabla(document, contieneLabel) {
 }
 
 
-//const cif = await obtenerCif();
-const cif = "B84525864";
+const cif = await obtenerCif();
+//const cif = "B84525864";
 if (cif.length > 0) {
     const html = await obtenerHTML(cif);
     const datos = await (obtenerDatosB(html));
