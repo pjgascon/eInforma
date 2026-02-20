@@ -13,7 +13,7 @@ function realizarBusqueda()
     if (!is_null($resultados)) {
         foreach ($resultados as $item) {
             $id = $item["id"];
-            $nombre = $item["nombre"];
+            $nombre = explode("/",$item["nombre"])[0];
             $poblacion = $item["localidad"];
 
             $pg = shell_exec("node --no-warnings " . getcwd() . "/telefono.js '{$nombre}' '{$poblacion}'");
