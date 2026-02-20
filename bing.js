@@ -8,6 +8,35 @@ import { JSDOM } from 'jsdom';
 // import fetch from 'node-fetch';
 puppeteer.use(StealthPlugin());
 
+async function connectar() {
+    try {
+        const connection = await mysql.createConnection({
+            host: 'waspserver.liberi.es',     // Cambia esto si usas un servidor remoto
+            user: 'root',         // Usuario de la base de datos
+            password: 'Coral18262202', // Contraseña del usuario
+            database: 'captura', // Nombre de la base de datos
+            port: 3306
+        });
+        // console.log('Conexión a MySQL establecida.');
+        return connection;
+    } catch (error) {
+        console.error('Error al conectar a MySQL:', error);
+        throw error;
+    }
+}
+
+async function obtenerCif() {
+    const con = await connectar();
+    const [rows] = await con.query("call captura.datos_cif_seleccionar();");
+    con.end();
+
+    try {
+        return rows[0][0].cif;
+    } catch (error) {
+        return "";
+    }
+}
+
 async function obtenerHTML(cif) {
     const browser = await puppeteer.launch({
         executablePath: '/usr/bin/chromium',
@@ -58,6 +87,7 @@ function extraerTelefono(texto) {
     return null;
 }
 
-const r = await obtenerHTML("telefono de HUMBLE LION SLP de VILLANUEVA DEL PARDILLO provincia madrid");
+const cif = await obtenerCif();
+const r = await obtenerHTML("telefono del cif " + cif);
 console.log(extraerTelefono(r));
 
