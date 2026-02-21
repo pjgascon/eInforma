@@ -77,9 +77,15 @@ const args = process.argv.slice(2);
 const nombre = args[0];
 const poblacion = args[1];
 
-const resultado = await obtenerHTML(nombre, poblacion);
-if (resultado) {
-    console.log(JSON.stringify({ ok: true, data: resultado }));
-} else {
-    console.log(JSON.stringify({ ok: false }));
+try {
+    const resultado = await obtenerHTML(nombre, poblacion);
+    if (resultado) {
+        console.log(JSON.stringify({ ok: true, data: resultado }));
+    } else {
+        console.log(JSON.stringify({ ok: false, data: 'No se ha encontrado resultados' }));
+    }
+}
+catch (error) {
+    const textoError = { textoError: error };
+    console.log(JSON.stringify({ ok: false, data: textoError }));
 }
