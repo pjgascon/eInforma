@@ -26,15 +26,15 @@ async function connectar() {
 }
 
 async function obtenerCif() {
-    // const con = await connectar();
-    // const [rows] = await con.query("call captura.datos_cif_seleccionar();");
-    // con.end();
-    return "B76676774";
-    // try {
-    //     return rows[0][0].cif;
-    // } catch (error) {
-    //     return "";
-    // }
+    const con = await connectar();
+    const [rows] = await con.query("call captura.pendiente_cualificar();");
+    con.end();
+    
+    try {
+        return rows[0][0].cif;
+    } catch (error) {
+        return "";
+    }
 }
 
 async function obtenerHTML(cif) {
@@ -173,6 +173,8 @@ async function guardarDatos(datos) {
     const con = await connectar();
     const sql = "call captura.cualificado_guardar('" + cif + "','" + datos.nombre + "','" + datos.direccion + "','" + datos.cp + "','" + datos.poblacion + "','" + datos.provincia + "','" + datos.telefono + "','" + datos.forma_juridica + "','" + datos.actividad_informa + "','" + datos.cnae + "','" + datos.objeto_social + "')";
     await con.query(sql);
+    const sqlAux = "call captura.actualizar('" + cif + "');";
+    await con.query(sqlAux);
     con.end();
     console.log("Guardando " + cif + " " + datos.nombre);
 }
