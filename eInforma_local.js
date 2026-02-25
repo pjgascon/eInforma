@@ -39,7 +39,7 @@ async function obtenerCif() {
 
 async function obtenerHTML(cif) {
     const browser = await puppeteer.launch({
-        executablePath: '/usr/bin/chromium',
+        executablePath: '/snap/bin/chromium',
         headless: true,
         args: ['--window-size=1,1',
             '--window-position=-1000,0',

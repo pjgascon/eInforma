@@ -34,7 +34,10 @@ function realizarBusqueda()
         $con = null;
         realizarBusqueda();
     } else {
-        echo "No se han encontrado datos para procesar";
+        echo "No se han encontrado datos para procesar" . PHP_EOL;
+        sleep(60);
+        $con = null;
+        realizarBusqueda();
     }
 }
 

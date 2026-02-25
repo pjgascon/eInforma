@@ -6,7 +6,7 @@ puppeteer.use(StealthPlugin());
 
 async function obtenerHTML(nombre, poblacion) {
     const browser = await puppeteer.launch({
-        executablePath: '/usr/bin/chromium',
+        executablePath: '/snap/bin/chromium',
         headless: true,
         args: ['--window-size=800,600',
             '--window-position=-1000,0',
