@@ -13,11 +13,11 @@ class Conexion extends mysqli
 		try {
 			// Llamada al constructor de mysqli con los parámetros correctos
 			parent::__construct(
-				"localhost", // Servidor
+				"casa.connectcloud.es", // Servidor
 				"root", // Usuario
 				"1826", // Contraseña
 				"captura", // Base de datos
-				3306 // Puerto (opcional, por defecto es 3306)
+				3302 // Puerto (opcional, por defecto es 3306)
 			);
 
 			// Verificar errores

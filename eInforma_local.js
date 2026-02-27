@@ -11,11 +11,11 @@ puppeteer.use(StealthPlugin());
 async function connectar() {
     try {
         const connection = await mysql.createConnection({
-            host: 'localhost',     // Cambia esto si usas un servidor remoto
+            host: 'casa.connectcloud.es',     // Cambia esto si usas un servidor remoto
             user: 'root',         // Usuario de la base de datos
             password: '1826', // Contraseña del usuario
             database: 'captura', // Nombre de la base de datos
-            port: 3306
+            port: 3302
         });
         // console.log('Conexión a MySQL establecida.');
         return connection;
