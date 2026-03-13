@@ -11,11 +11,11 @@ puppeteer.use(StealthPlugin());
 async function connectar() {
     try {
         const connection = await mysql.createConnection({
-            host: 'casa.connectcloud.es',     // Cambia esto si usas un servidor remoto
+            host: 'desarrolloserver.liberi.es',     // Cambia esto si usas un servidor remoto
             user: 'root',         // Usuario de la base de datos
-            password: '1826', // Contraseña del usuario
+            password: 'Coral18262202', // Contraseña del usuario
             database: 'captura', // Nombre de la base de datos
-            port: 3302
+            port: 3307
         });
         // console.log('Conexión a MySQL establecida.');
         return connection;
@@ -29,7 +29,7 @@ async function obtenerCif() {
     const con = await connectar();
     const [rows] = await con.query("call captura.pendiente_cualificar();");
     con.end();
-    
+
     try {
         return rows[0][0].cif;
     } catch (error) {
@@ -39,7 +39,7 @@ async function obtenerCif() {
 
 async function obtenerHTML(cif) {
     const browser = await puppeteer.launch({
-        executablePath: '/snap/bin/chromium',
+        executablePath: '/usr/bin/google-chrome',
         headless: true,
         args: ['--window-size=1,1',
             '--window-position=-1000,0',
@@ -69,70 +69,80 @@ async function obtenerDatosB(html) {
     const dom = new JSDOM(html);
     const document = dom.window.document;
 
-    // Verificar si aparece la cadena "no se han encontrado resultados"
-    if (html.includes("No se han encontrado resultados")) {
+    try {
+        // Verificar si aparece la cadena "no se han encontrado resultados"
+        if (html.includes("No se han encontrado resultados")) {
+            let objDatos = {};
+            objDatos.nombre = "Sin resultados";
+            objDatos.direccion = "Sin resultados";
+            objDatos.poblacion = "Sin resultados";
+            objDatos.provincia = "Sin resultados";
+            objDatos.telefono = "No encontrado";
+            objDatos.forma_juridica = "No encontrado";
+            objDatos.actividad_informa = "No encontrado";
+            objDatos.cnae = "No encontrado";
+            objDatos.objeto_social = "No encontrado";
+            return objDatos;
+        }
+
+        // Extraer la denominación desde el <title>
+        const denominacion = document.querySelector("title")?.textContent.trim() || "No encontrada";
+
+        // Extraer el texto completo del body
+        const allText = document.body.textContent.replace(/\s+/g, ' ').trim();
+
+        let direccion = "No encontrada";
+        let localidad = "No encontrada";
+
+        // Extraer domicilio social actual (después de "Domicilio social actual:" pero antes de "Localidad:")
+        const domicilioRegex = /Domicilio social actual:\s*(.*?)\s*Localidad:/i;
+        const domicilioMatch = allText.match(domicilioRegex);
+        if (domicilioMatch) {
+            direccion = domicilioMatch[1].trim().replace("Ver Mapa", "").trim();
+        }
+
+        // Extraer localidad (después de "Localidad:" y antes de "Fecha último dato:")
+        const localidadRegex = /Localidad:\s*(.*?)\s*Fecha último dato:/i;
+        const localidadMatch = allText.match(localidadRegex);
+        if (localidadMatch) {
+            localidad = localidadMatch[1].trim();
+            const posicion = localidad.indexOf(")");
+
+            localidad = localidad.substring(0, posicion + 1).trim();
+        }
+
+        // ✅ Teléfono desde la tabla (puede devolver varios)
+        const telefonos = getDatoTablaPorLabel(document, 'Teléfono:');
+        const telefono = separarTelefonos9(telefonos); // o telefonos[0] si solo quieres el primero
+
+        const formaJuridica = getDatoTabla(document, 'Forma Jurídica');     // "Sociedad limitada" :contentReference[oaicite:2]{index=2}
+        const actividadInforma = getDatoTabla(document, 'Actividad Informa');  // "Actividades de los centros de llamadas" :contentReference[oaicite:3]{index=3}
+        const cnae = getDatoTabla(document, 'CNAE');               // "8220 - ..." :contentReference[oaicite:4]{index=4}
+        const objetoSocial = getDatoTabla(document, 'Objeto Social');
+        const regex = /(\d{5})\s+([^(]+)\s*\(\s*([^)]+)\s*\)/;
+        const match = localidad.match(regex);
+
         let objDatos = {};
-        objDatos.nombre = "Sin resultados";
-        objDatos.direccion = "Sin resultados";
-        objDatos.poblacion = "Sin resultados";
-        objDatos.provincia = "Sin resultados";
-        objDatos.telefono = "No encontrado";
-        objDatos.forma_juridica = "No encontrado";
-        objDatos.actividad_informa = "No encontrado";
-        objDatos.cnae = "No encontrado";
-        objDatos.objeto_social = "No encontrado";
+        objDatos.nombre = addslashes(denominacion);
+        objDatos.cp = match[1].trim();
+        objDatos.direccion = addslashes(direccion);
+        objDatos.poblacion = addslashes(match[2].trim());
+        objDatos.provincia = addslashes(match[3].trim());
+        objDatos.telefono = addslashes(telefono);
+        objDatos.forma_juridica = addslashes(formaJuridica);
+        objDatos.actividad_informa = addslashes(actividadInforma);
+        objDatos.cnae = addslashes(cnae);
+        objDatos.objeto_social = addslashes(objetoSocial);
+        
         return objDatos;
+    } catch (error) {
+        const con = await connectar();
+        const sql = "call captura.cualificado_eliminar('" + cif + "')";
+        await con.query(sql);
+        con.end();
+        console.log("Elimninado " + cif);
+        return null;
     }
-
-    // Extraer la denominación desde el <title>
-    const denominacion = document.querySelector("title")?.textContent.trim() || "No encontrada";
-
-    // Extraer el texto completo del body
-    const allText = document.body.textContent.replace(/\s+/g, ' ').trim();
-
-    let direccion = "No encontrada";
-    let localidad = "No encontrada";
-
-    // Extraer domicilio social actual (después de "Domicilio social actual:" pero antes de "Localidad:")
-    const domicilioRegex = /Domicilio social actual:\s*(.*?)\s*Localidad:/i;
-    const domicilioMatch = allText.match(domicilioRegex);
-    if (domicilioMatch) {
-        direccion = domicilioMatch[1].trim().replace("Ver Mapa", "").trim();
-    }
-
-    // Extraer localidad (después de "Localidad:" y antes de "Fecha último dato:")
-    const localidadRegex = /Localidad:\s*(.*?)\s*Fecha último dato:/i;
-    const localidadMatch = allText.match(localidadRegex);
-    if (localidadMatch) {
-        localidad = localidadMatch[1].trim();
-        const posicion = localidad.indexOf(")");
-
-        localidad = localidad.substring(0, posicion + 1).trim();
-    }
-
-    // ✅ Teléfono desde la tabla (puede devolver varios)
-    const telefonos = getDatoTablaPorLabel(document, 'Teléfono:');
-    const telefono = separarTelefonos9(telefonos); // o telefonos[0] si solo quieres el primero
-
-    const formaJuridica = getDatoTabla(document, 'Forma Jurídica');     // "Sociedad limitada" :contentReference[oaicite:2]{index=2}
-    const actividadInforma = getDatoTabla(document, 'Actividad Informa');  // "Actividades de los centros de llamadas" :contentReference[oaicite:3]{index=3}
-    const cnae = getDatoTabla(document, 'CNAE');               // "8220 - ..." :contentReference[oaicite:4]{index=4}
-    const objetoSocial = getDatoTabla(document, 'Objeto Social');
-    const regex = /(\d{5})\s+([^(]+)\s*\(\s*([^)]+)\s*\)/;
-    const match = localidad.match(regex);
-
-    let objDatos = {};
-    objDatos.nombre = addslashes(denominacion);
-    objDatos.cp = match[1].trim();
-    objDatos.direccion = addslashes(direccion);
-    objDatos.poblacion = addslashes(match[2].trim());
-    objDatos.provincia = addslashes(match[3].trim());
-    objDatos.telefono = addslashes(telefono);
-    objDatos.forma_juridica = addslashes(formaJuridica);
-    objDatos.actividad_informa = addslashes(actividadInforma);
-    objDatos.cnae = addslashes(cnae);
-    objDatos.objeto_social = addslashes(objetoSocial);
-    return objDatos;
 }
 
 async function obtenerDatos(html) {
@@ -248,12 +258,14 @@ function getDatoTabla(document, contieneLabel) {
 
 
 const cif = await obtenerCif();
-//const cif = "B84525864";
+// const cif = "B04151817";
 if (cif.length > 0) {
     const html = await obtenerHTML(cif);
     const datos = await (obtenerDatosB(html));
 
-    await guardarDatos(datos);
+    if (datos != null) {
+        await guardarDatos(datos);
+    }
 } else {
     console.log("No hay más cif");
 }
